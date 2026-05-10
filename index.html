@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Anti Cheat Online Exam</title>
+<title>Anti-Cheat Online Exam</title>
 
 <style>
 body {
@@ -43,15 +43,15 @@ button {
 
 <!-- START SCREEN -->
 <div id="startScreen">
-  <h2>KIỂM TRA ONLINE</h2>
-  <input id="studentName" placeholder="Nhập tên của bạn" />
+  <h2>ONLINE EXAM</h2>
+  <input id="studentName" placeholder="Enter your name" />
   <br><br>
   <button onclick="startExam()">START</button>
 </div>
 
 <!-- EXAM SCREEN -->
 <div id="examScreen">
-  <h3>Thời gian còn lại: <span id="timer">20:00</span></h3>
+  <h3>Time remaining: <span id="timer">20:00</span></h3>
   <div class="warning" id="warning"></div>
 
   <iframe id="formFrame"
@@ -60,16 +60,16 @@ button {
 </div>
 
 <script>
+
 // ================= CONFIG =================
 const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1502994532126560276/UO-dj1ynL5CDJk23Sz8QZt74xCI_QmTQtti-_SG38-Y0O1bALNrNfd5Z34j9Tp0xvMoZ";
+
 let name = "";
 let time = 20 * 60;
 let violations = 0;
 
-// load lại trạng thái nếu có
-if (localStorage.getItem("violations")) {
-  violations = parseInt(localStorage.getItem("violations"));
-}
+// 🔒 permanent ban flag
+let banned = localStorage.getItem("banned") === "true";
 
 // ================= DISCORD =================
 function sendDiscord(msg) {
@@ -80,58 +80,71 @@ function sendDiscord(msg) {
   });
 }
 
-// ================= START EXAM =================
+// ================= START =================
 function startExam() {
+
+  if (banned) {
+    alert("You are permanently banned from this exam.");
+    return;
+  }
+
   name = document.getElementById("studentName").value;
 
   if (!name) {
-    alert("Vui lòng nhập tên!");
+    alert("Please enter your name!");
     return;
   }
 
   document.getElementById("startScreen").style.display = "none";
   document.getElementById("examScreen").style.display = "block";
 
-  sendDiscord("🟢 " + name + " bắt đầu bài thi");
+  // reset timer EACH start
+  time = 20 * 60;
+  violations = 0;
+
+  sendDiscord("🟢 " + name + " started the exam");
 
   startTimer();
 
   document.addEventListener("visibilitychange", handleTabSwitch);
 
-  document.addEventListener("copy", function(e) {
+  document.addEventListener("copy", e => {
     e.preventDefault();
-    alert("Không được copy!");
+    alert("Copying is not allowed!");
   });
 }
 
-// ================= TAB CHECK =================
+// ================= TAB SWITCH =================
 function handleTabSwitch() {
   if (document.hidden) {
     violations++;
-    localStorage.setItem("violations", violations);
 
-    // ===== LẦN 1 =====
+    // ===== FIRST VIOLATION =====
     if (violations === 1) {
-      sendDiscord("⚠️ " + name + " chuyển tab (LẦN 1)");
+      sendDiscord("⚠️ " + name + " switched tab (WARNING 1)");
 
       document.getElementById("warning").innerText =
-        "⚠️ Vi phạm lần 1 - bạn sẽ bị đưa ra ngoài!";
+        "Warning 1: You will be removed and must restart.";
 
-      alert("Bạn đã vi phạm lần 1!");
+      alert("Violation 1 detected! You will be removed.");
 
+      // reset session (timer will restart)
       setTimeout(() => {
         location.reload();
       }, 500);
     }
 
-    // ===== LẦN 2 =====
+    // ===== SECOND VIOLATION =====
     if (violations >= 2) {
-      sendDiscord("❌ " + name + " chuyển tab (LẦN 2) - BỊ LOẠI");
+      sendDiscord("❌ " + name + " switched tab (FINAL VIOLATION)");
 
       document.getElementById("warning").innerText =
-        "❌ BẠN ĐÃ BỊ LOẠI KHỎI BÀI THI";
+        "YOU ARE BANNED FROM THIS EXAM";
 
-      alert("Bạn đã bị loại khỏi bài thi!");
+      alert("You are permanently banned!");
+
+      // set permanent ban
+      localStorage.setItem("banned", "true");
 
       lockExam(true);
     }
@@ -140,11 +153,15 @@ function handleTabSwitch() {
 
 // ================= LOCK EXAM =================
 function lockExam(autoSubmit = false) {
+
   document.getElementById("formFrame").style.display = "none";
 
   if (autoSubmit) {
-    sendDiscord("📤 " + name + " bị khóa bài và coi như nộp bài");
+    sendDiscord("📤 " + name + " exam auto-submitted due to cheating");
   }
+
+  document.getElementById("warning").innerText =
+    "Exam closed.";
 }
 
 // ================= TIMER =================
@@ -163,14 +180,15 @@ function startTimer() {
     if (t <= 0) {
       clearInterval(timer);
 
-      sendDiscord("⏰ " + name + " hết giờ làm bài");
+      sendDiscord("⏰ " + name + " time is up");
 
-      alert("Hết giờ!");
+      alert("Time is up!");
 
       lockExam(true);
     }
   }, 1000);
 }
+
 </script>
 
 </body>
