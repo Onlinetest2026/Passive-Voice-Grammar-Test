@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Anti-Cheat Online Exam</title>
+<title>Anti-Cheat Exam System</title>
 
 <style>
 body {
@@ -64,19 +64,19 @@ button {
 // ================= CONFIG =================
 const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1502994532126560276/UO-dj1ynL5CDJk23Sz8QZt74xCI_QmTQtti-_SG38-Y0O1bALNrNfd5Z34j9Tp0xvMoZ";
 
+// ================= STATE =================
 let name = "";
-let time = 20 * 60;
-let violations = 0;
-
-// 🔒 permanent ban flag
+let timer;
+let violations = parseInt(localStorage.getItem("violations") || "0");
 let banned = localStorage.getItem("banned") === "true";
+let remainingTime = parseInt(localStorage.getItem("time") || (20 * 60));
 
 // ================= DISCORD =================
 function sendDiscord(msg) {
   fetch(DISCORD_WEBHOOK, {
     method: "POST",
     headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({content: msg})
+    body: JSON.stringify({content: "👤 " + name + " | " + msg})
   });
 }
 
@@ -98,95 +98,100 @@ function startExam() {
   document.getElementById("startScreen").style.display = "none";
   document.getElementById("examScreen").style.display = "block";
 
-  // reset timer EACH start
-  time = 20 * 60;
-  violations = 0;
-
-  sendDiscord("🟢 " + name + " started the exam");
+  sendDiscord("STARTED EXAM");
 
   startTimer();
 
-  document.addEventListener("visibilitychange", handleTabSwitch);
+  document.addEventListener("visibilitychange", handleViolation);
 
-  document.addEventListener("copy", e => {
-    e.preventDefault();
-    alert("Copying is not allowed!");
-  });
+  document.addEventListener("copy", e => e.preventDefault());
+  document.addEventListener("paste", e => e.preventDefault());
+  document.addEventListener("contextmenu", e => e.preventDefault());
 }
 
-// ================= TAB SWITCH =================
-function handleTabSwitch() {
-  if (document.hidden) {
-    violations++;
+// ================= VIOLATION =================
+function handleViolation() {
 
-    // ===== FIRST VIOLATION =====
+  if (document.hidden) {
+
+    violations++;
+    localStorage.setItem("violations", violations);
+
+    sendDiscord("TAB SWITCH DETECTED | Attempt: " + violations);
+
+    // ================= FIRST VIOLATION =================
     if (violations === 1) {
-      sendDiscord("⚠️ " + name + " switched tab (WARNING 1)");
+
+      // save current time before reload
+      localStorage.setItem("time", remainingTime);
+
+      sendDiscord("WARNING 1 - STUDENT KICKED");
 
       document.getElementById("warning").innerText =
-        "Warning 1: You will be removed and must restart.";
+        "Warning 1: You were removed from the exam.";
 
-      alert("Violation 1 detected! You will be removed.");
+      alert("Violation 1 detected. You will be removed.");
 
-      // reset session (timer will restart)
-      setTimeout(() => {
-        location.reload();
-      }, 500);
+      setTimeout(() => location.reload(), 500);
     }
 
-    // ===== SECOND VIOLATION =====
+    // ================= SECOND VIOLATION =================
     if (violations >= 2) {
-      sendDiscord("❌ " + name + " switched tab (FINAL VIOLATION)");
+
+      sendDiscord("FINAL VIOLATION - STUDENT BANNED");
+
+      localStorage.setItem("banned", "true");
 
       document.getElementById("warning").innerText =
-        "YOU ARE BANNED FROM THIS EXAM";
+        "You are permanently banned.";
 
       alert("You are permanently banned!");
-
-      // set permanent ban
-      localStorage.setItem("banned", "true");
 
       lockExam(true);
     }
   }
-}
-
-// ================= LOCK EXAM =================
-function lockExam(autoSubmit = false) {
-
-  document.getElementById("formFrame").style.display = "none";
-
-  if (autoSubmit) {
-    sendDiscord("📤 " + name + " exam auto-submitted due to cheating");
-  }
-
-  document.getElementById("warning").innerText =
-    "Exam closed.";
 }
 
 // ================= TIMER =================
 function startTimer() {
-  let t = time;
 
-  let timer = setInterval(() => {
-    t--;
+  timer = setInterval(() => {
 
-    let m = Math.floor(t / 60);
-    let s = t % 60;
+    remainingTime--;
+
+    // save continuously (important)
+    localStorage.setItem("time", remainingTime);
+
+    let m = Math.floor(remainingTime / 60);
+    let s = remainingTime % 60;
 
     document.getElementById("timer").innerText =
       m + ":" + (s < 10 ? "0" + s : s);
 
-    if (t <= 0) {
+    if (remainingTime <= 0) {
       clearInterval(timer);
 
-      sendDiscord("⏰ " + name + " time is up");
-
-      alert("Time is up!");
+      sendDiscord("TIME UP - AUTO SUBMIT");
 
       lockExam(true);
     }
+
   }, 1000);
+}
+
+// ================= LOCK =================
+function lockExam(autoSubmit = false) {
+
+  clearInterval(timer);
+
+  document.getElementById("formFrame").style.display = "none";
+
+  if (autoSubmit) {
+    sendDiscord("EXAM AUTO SUBMITTED OR LOCKED");
+  }
+
+  document.getElementById("warning").innerText =
+    "Exam closed.";
 }
 
 </script>
