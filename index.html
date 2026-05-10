@@ -1,451 +1,302 @@
 <!DOCTYPE html>
 <html lang="vi">
-
 <head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Online Test</title>
+<title>Anti Cheat Exam</title>
 
 <style>
-
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-}
-
-body{
-    overflow:hidden;
-    font-family:Arial, sans-serif;
-    background:#f5f6fa;
-}
-
-/* =========================
-   HEADER
-========================= */
-
-#header{
-
-    position:fixed;
-
-    top:0;
-    left:0;
-
-    width:100%;
-    height:70px;
-
-    background:white;
-
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-
-    padding:0 25px;
-
-    box-shadow:0 2px 10px rgba(0,0,0,0.1);
-
-    z-index:9999;
-
-}
-
-#title{
-
-    font-size:24px;
-    font-weight:bold;
-    color:#2d3436;
-
-}
-
-#timer{
-
-    background:#0984e3;
-    color:white;
-
-    padding:10px 20px;
-
-    border-radius:10px;
-
-    font-size:22px;
-    font-weight:bold;
-
-}
-
-/* =========================
-   START SCREEN
-========================= */
-
-#startScreen{
-
-    position:fixed;
-
-    width:100%;
-    height:100%;
-
-    background:linear-gradient(
-        135deg,
-        #74b9ff,
-        #0984e3
-    );
-
-    display:flex;
-    justify-content:center;
-    align-items:center;
-
-    z-index:10000;
-
-}
-
-#card{
-
-    background:white;
-
-    width:90%;
-    max-width:500px;
-
-    padding:40px;
-
-    border-radius:20px;
-
-    text-align:center;
-
-    box-shadow:0 10px 30px rgba(0,0,0,0.2);
-
-}
-
-#card h1{
-
-    color:#2d3436;
-    margin-bottom:20px;
-
-    font-size:35px;
-
-}
-
-#card p{
-
-    color:#636e72;
-    margin-bottom:30px;
-
-    font-size:18px;
-    line-height:1.6;
-
-}
-
-#studentName{
-
-    width:100%;
-
-    padding:15px;
-
-    font-size:18px;
-
-    border:2px solid #dfe6e9;
-
-    border-radius:10px;
-
-    margin-bottom:25px;
-
-}
-
-#startBtn{
-
-    width:100%;
-
-    padding:15px;
-
-    font-size:20px;
-
-    border:none;
-
-    border-radius:10px;
-
-    background:#0984e3;
-    color:white;
-
-    cursor:pointer;
-
-    transition:0.3s;
-
-}
-
-#startBtn:hover{
-
-    background:#0672c7;
-
-}
-
-/* =========================
-   WARNING
-========================= */
-
-#warning{
-
-    position:fixed;
-
-    top:70px;
-    left:0;
-
-    width:100%;
-
-    background:red;
-    color:white;
-
-    text-align:center;
-
-    padding:15px;
-
-    font-size:18px;
-    font-weight:bold;
-
-    display:none;
-
-    z-index:99999;
-
-}
-
-/* =========================
-   BLOCKED
-========================= */
-
-#blocked{
-
-    position:fixed;
-
-    width:100%;
-    height:100%;
-
-    background:black;
-    color:white;
-
-    display:none;
-
-    justify-content:center;
-    align-items:center;
-    flex-direction:column;
-
-    z-index:100000;
-
-    text-align:center;
-
-    padding:20px;
-
-}
-
-#blocked h1{
-
-    font-size:50px;
-    color:red;
-
-    margin-bottom:20px;
-
-}
-
-#blocked p{
-
-    font-size:25px;
-
-}
-
-/* =========================
-   GOOGLE FORM
-========================= */
-
-iframe{
-
-    width:100%;
-    height:calc(100vh - 70px);
-
-    border:none;
-
-    margin-top:70px;
-
-}
-
+    *{
+        margin:0;
+        padding:0;
+        box-sizing:border-box;
+        font-family:Arial, Helvetica, sans-serif;
+    }
+
+    body{
+        background:#f4f6f9;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        height:100vh;
+    }
+
+    .container{
+        width:420px;
+        background:white;
+        padding:35px;
+        border-radius:18px;
+        box-shadow:0 10px 25px rgba(0,0,0,0.1);
+        text-align:center;
+    }
+
+    h1{
+        margin-bottom:20px;
+        color:#222;
+    }
+
+    input{
+        width:100%;
+        padding:14px;
+        border-radius:10px;
+        border:1px solid #ccc;
+        margin-bottom:20px;
+        font-size:16px;
+    }
+
+    button{
+        width:100%;
+        padding:14px;
+        border:none;
+        background:#111827;
+        color:white;
+        font-size:18px;
+        border-radius:10px;
+        cursor:pointer;
+        transition:0.2s;
+    }
+
+    button:hover{
+        opacity:0.9;
+    }
+
+    .hidden{
+        display:none;
+    }
+
+    .timer{
+        font-size:22px;
+        font-weight:bold;
+        margin-bottom:20px;
+        color:#dc2626;
+    }
+
+    iframe{
+        width:100%;
+        height:500px;
+        border:none;
+        border-radius:10px;
+    }
+
+    .warning{
+        margin-top:15px;
+        color:red;
+        font-weight:bold;
+    }
 </style>
-
 </head>
 
 <body>
 
-<!-- HEADER -->
+<div class="container">
 
-<div id="header">
+    <!-- LOGIN -->
+    <div id="loginBox">
+        <h1>START</h1>
 
-    <div id="title">
+        <input type="text" id="studentName" placeholder="Nhập tên học sinh">
 
-        English Grammar Test
-
+        <button onclick="startExam()">Bắt đầu làm bài</button>
     </div>
 
-    <div id="timer">
+    <!-- EXAM -->
+    <div id="examBox" class="hidden">
 
-        20:00
+        <div class="timer" id="timer">
+            20:00
+        </div>
 
-    </div>
+        <!-- https://docs.google.com/forms/d/e/1FAIpQLSew_ygoZvP1kBtK74vuknMUUkbslawSg9ixdvZMnKoYtSrxQg/viewform?embedded=true -->
+        <iframe 
+        id="examFrame"
+        src="https://docs.google.com/forms/d/e/FORM_ID/viewform?embedded=true">
+        </iframe>
 
-</div>
-
-<!-- START SCREEN -->
-
-<div id="startScreen">
-
-    <div id="card">
-
-        <h1>Welcome</h1>
-
-        <p>
-
-            Please enter your name before starting the test.
-
-        </p>
-
-        <input
-        type="text"
-        id="studentName"
-        placeholder="Enter your name">
-
-        <button
-        id="startBtn"
-        onclick="startExam()">
-
-            Start Test
-
-        </button>
+        <div class="warning" id="warningText"></div>
 
     </div>
 
 </div>
-
-<!-- WARNING -->
-
-<div id="warning">
-
-    ⚠️ Hệ thống phát hiện chuyển tab!
-
-</div>
-
-<!-- BLOCKED -->
-
-<div id="blocked">
-
-    <h1>TEST BLOCKED</h1>
-
-    <p>
-
-        Bạn đã bị loại khỏi bài kiểm tra.
-
-    </p>
-
-</div>
-
-<!-- GOOGLE FORM -->
-
-<iframe
-src="https://docs.google.com/forms/d/e/1FAIpQLSew_ygoZvP1kBtK74vuknMUUkbslawSg9ixdvZMnKoYtSrxQg/viewform?embedded=true">
-</iframe>
 
 <script>
 
-/* =========================
-   CONFIG
-========================= */
+//////////////////////////////////////////////////////
+// CẤU HÌNH
+//////////////////////////////////////////////////////
 
-const webhook =
-"https://discord.com/api/webhooks/1502994532126560276/UO-dj1ynL5CDJk23Sz8QZt74xCI_QmTQtti-_SG38-Y0O1bALNrNfd5Z34j9Tp0xvMoZ";
+// WEBHOOK DISCORD
+const webhookURL = "https://discord.com/api/webhooks/1502994532126560276/UO-dj1ynL5CDJk23Sz8QZt74xCI_QmTQtti-_SG38-Y0O1bALNrNfd5Z34j9Tp0xvMoZ";
 
-/* =========================
-   VARIABLES
-========================= */
+// THỜI GIAN
+let totalTime = 20 * 60;
 
+// BIẾN
+let student = "";
 let examStarted = false;
 let cheated = false;
 
-/* =========================
-   TIMER
-========================= */
-
-let totalTime = 20 * 60;
-
-let timerInterval;
-
-function startTimer(){
-
-    timerInterval = setInterval(()=>{
-
-        totalTime--;
-
-        let minutes =
-        Math.floor(totalTime / 60);
-
-        let seconds =
-        totalTime % 60;
-
-        if(seconds < 10){
-            seconds = "0" + seconds;
-        }
-
-        document
-        .getElementById("timer")
-        .innerText =
-        minutes + ":" + seconds;
-
-        if(totalTime <= 0){
-
-            clearInterval(
-                timerInterval
-            );
-
-            blockStudent(
-                "Hết thời gian"
-            );
-
-        }
-
-    },1000);
-
-}
-
-/* =========================
-   START EXAM
-========================= */
+//////////////////////////////////////////////////////
+// BẮT ĐẦU
+//////////////////////////////////////////////////////
 
 function startExam(){
 
-    let studentName =
-    document
-    .getElementById("studentName")
-    .value
-    .trim();
+    student = document.getElementById("studentName").value.trim();
 
-    if(studentName === ""){
-
-        alert(
-            "Vui lòng nhập tên!"
-        );
-
+    if(student === ""){
+        alert("Vui lòng nhập tên");
         return;
-
     }
+
+    document.getElementById("loginBox").classList.add("hidden");
+    document.getElementById("examBox").classList.remove("hidden");
 
     examStarted = true;
 
-    document
-    .getElementById("startScreen")
-    .style.display = "none";
+    sendDiscord(
+        "🟢 Học sinh bắt đầu làm bài: **" + student + "**"
+    );
 
     startTimer();
-
 }
 
-/* =========================
-   SEND DISCORD
-========================= */
+//////////////////////////////////////////////////////
+// TIMER 20 PHÚT
+//////////////////////////////////////////////////////
 
-function sendCheat(reason){
+function startTimer(){
 
-    fetch(webhook,{
+    const timer = document.getElementById("timer");
+
+    const countdown = setInterval(() => {
+
+        let minutes = Math.floor(totalTime / 60);
+        let seconds = totalTime % 60;
+
+        seconds = seconds < 10 ? "0" + seconds : seconds;
+
+        timer.innerHTML = minutes + ":" + seconds;
+
+        totalTime--;
+
+        if(totalTime < 0){
+
+            clearInterval(countdown);
+
+            sendDiscord(
+                "⏰ Hết giờ làm bài: **" + student + "**"
+            );
+
+            alert("Đã hết thời gian làm bài!");
+
+            endExam();
+        }
+
+    },1000);
+}
+
+//////////////////////////////////////////////////////
+// KẾT THÚC
+//////////////////////////////////////////////////////
+
+function endExam(){
+
+    document.body.innerHTML = `
+        <div style="
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            font-size:30px;
+            font-weight:bold;
+            color:red;
+            background:#fff;
+        ">
+            BÀI THI ĐÃ KẾT THÚC
+        </div>
+    `;
+}
+
+//////////////////////////////////////////////////////
+// CHỐNG COPY
+//////////////////////////////////////////////////////
+
+document.addEventListener("copy", function(e){
+
+    e.preventDefault();
+
+    if(examStarted){
+        alert("Không được copy!");
+    }
+
+});
+
+//////////////////////////////////////////////////////
+// CHẶN CHUỘT PHẢI
+//////////////////////////////////////////////////////
+
+document.addEventListener("contextmenu", function(e){
+
+    e.preventDefault();
+
+});
+
+//////////////////////////////////////////////////////
+// PHÁT HIỆN CHUYỂN TAB
+//////////////////////////////////////////////////////
+
+document.addEventListener("visibilitychange", function(){
+
+    if(document.hidden && examStarted && !cheated){
+
+        cheated = true;
+
+        document.getElementById("warningText").innerHTML =
+            "PHÁT HIỆN GIAN LẬN!";
+
+        sendDiscord(
+            "🚨 Học sinh gian lận: **" + student + "** (Chuyển tab)"
+        );
+
+        alert("Bạn đã chuyển tab. Bài thi kết thúc!");
+
+        endExam();
+    }
+
+});
+
+//////////////////////////////////////////////////////
+// PHÁT HIỆN RỜI CỬA SỔ
+//////////////////////////////////////////////////////
+
+window.addEventListener("blur", function(){
+
+    if(examStarted && !cheated){
+
+        cheated = true;
+
+        document.getElementById("warningText").innerHTML =
+            "PHÁT HIỆN GIAN LẬN!";
+
+        sendDiscord(
+            "🚨 Học sinh gian lận: **" + student + "** (Rời cửa sổ)"
+        );
+
+        alert("Bạn đã rời cửa sổ bài thi!");
+
+        endExam();
+    }
+
+});
+
+//////////////////////////////////////////////////////
+// GỬI DISCORD
+//////////////////////////////////////////////////////
+
+function sendDiscord(message){
+
+    fetch(webhookURL, {
 
         method:"POST",
 
@@ -454,169 +305,42 @@ function sendCheat(reason){
         },
 
         body:JSON.stringify({
-
-            content:
-
-            "🚨 HỌC SINH GIAN LẬN\n\n"
-
-            + "Lý do: " + reason + "\n"
-
-            + "Thời gian: "
-
-            + new Date().toLocaleString()
-
+            content:message
         })
 
     });
 
 }
 
-/* =========================
-   BLOCK STUDENT
-========================= */
+//////////////////////////////////////////////////////
+// CHẶN PHÍM TẮT
+//////////////////////////////////////////////////////
 
-function blockStudent(reason){
+document.addEventListener("keydown", function(e){
 
-    if(cheated) return;
-
-    cheated = true;
-
-    document
-    .getElementById("warning")
-    .style.display = "block";
-
-    setTimeout(()=>{
-
-        document
-        .getElementById("blocked")
-        .style.display = "flex";
-
-    },500);
-
-    sendCheat(reason);
-
-}
-
-/* =========================
-   DETECT TAB SWITCH
-========================= */
-
-document.addEventListener(
-
-    "visibilitychange",
-
-    ()=>{
-
-        if(
-            examStarted &&
-            document.hidden &&
-            !cheated
-        ){
-
-            blockStudent(
-                "Chuyển tab"
-            );
-
-        }
-
-    }
-
-);
-
-/* =========================
-   BLOCK COPY
-========================= */
-
-document.addEventListener(
-
-    "copy",
-
-    (e)=>{
-
-        if(examStarted){
-
-            e.preventDefault();
-
-            alert(
-                "Không được copy!"
-            );
-
-            sendCheat(
-                "Copy nội dung"
-            );
-
-        }
-
-    }
-
-);
-
-/* =========================
-   BLOCK RIGHT CLICK
-========================= */
-
-document.addEventListener(
-
-    "contextmenu",
-
-    (e)=>{
-
+    // Ctrl+C
+    if(e.ctrlKey && e.key.toLowerCase() === "c"){
         e.preventDefault();
-
     }
 
-);
-
-/* =========================
-   BLOCK SHORTCUTS
-========================= */
-
-document.addEventListener(
-
-    "keydown",
-
-    (e)=>{
-
-        if(e.key === "F12"){
-
-            e.preventDefault();
-
-        }
-
-        if(
-            e.ctrlKey &&
-            e.key.toLowerCase() === "c"
-        ){
-
-            e.preventDefault();
-
-        }
-
-        if(
-            e.ctrlKey &&
-            e.key.toLowerCase() === "u"
-        ){
-
-            e.preventDefault();
-
-        }
-
-        if(
-            e.ctrlKey &&
-            e.shiftKey &&
-            e.key.toLowerCase() === "i"
-        ){
-
-            e.preventDefault();
-
-        }
-
+    // Ctrl+U
+    if(e.ctrlKey && e.key.toLowerCase() === "u"){
+        e.preventDefault();
     }
 
-);
+    // F12
+    if(e.key === "F12"){
+        e.preventDefault();
+    }
+
+    // Ctrl+Shift+I
+    if(e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "i"){
+        e.preventDefault();
+    }
+
+});
 
 </script>
 
 </body>
-
 </html>
