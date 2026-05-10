@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Online Exam Secure Lite</title>
+<title>Online Exam Lite Pro</title>
 
 <style>
 body {
@@ -11,13 +11,8 @@ body {
   background: #f4f4f4;
 }
 
-#startScreen {
-  margin-top: 120px;
-}
-
-#examScreen {
-  display: none;
-}
+#startScreen { margin-top: 120px; }
+#examScreen { display:none; }
 
 iframe {
   width: 92%;
@@ -29,12 +24,9 @@ iframe {
 .warning {
   color: red;
   font-weight: bold;
-  margin-top: 10px;
 }
 
-button {
-  padding: 10px 20px;
-}
+button { padding: 10px 20px; }
 </style>
 </head>
 
@@ -43,7 +35,7 @@ button {
 <!-- START -->
 <div id="startScreen">
   <h2>ONLINE EXAM</h2>
-  <input id="name" placeholder="Enter your name">
+  <input id="name" placeholder="Enter name">
   <br><br>
   <button onclick="startExam()">START</button>
 </div>
@@ -64,11 +56,13 @@ button {
 const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1502994532126560276/UO-dj1ynL5CDJk23Sz8QZt74xCI_QmTQtti-_SG38-Y0O1bALNrNfd5Z34j9Tp0xvMoZ";
 
 let name = "";
-let time = 20 * 60;
+let timer;
 let violations = 0;
 
-// 🔒 session only (reset khi đổi link/tab mới)
-let locked = sessionStorage.getItem("locked") === "true";
+// ⏱ persist time across reload
+let remainingTime = sessionStorage.getItem("time")
+  ? parseInt(sessionStorage.getItem("time"))
+  : 20 * 60;
 
 // ================= DISCORD =================
 function log(msg){
@@ -81,11 +75,6 @@ function log(msg){
 
 // ================= START =================
 function startExam(){
-
-  if(locked){
-    alert("You are locked from this session.");
-    return;
-  }
 
   name = document.getElementById("name").value;
   if(!name) return alert("Enter name");
@@ -114,32 +103,34 @@ function detectTab(){
 
     log("TAB SWITCH | attempt " + violations);
 
-    // ===== FIRST VIOLATION =====
+    // ===== FIRST TIME =====
     if(violations === 1){
 
       log("WARNING 1 - KICK USER");
 
-      alert("Violation 1 - You will be removed");
+      // save remaining time BEFORE reload
+      sessionStorage.setItem("time", remainingTime);
+
+      alert("Violation 1 - You are removed");
 
       setTimeout(()=>{
         location.reload();
       },500);
     }
 
-    // ===== SECOND VIOLATION =====
+    // ===== SECOND TIME =====
     if(violations >= 2){
 
-      log("FINAL VIOLATION - SESSION LOCKED");
+      log("FINAL VIOLATION - AUTO SUBMIT");
 
-      sessionStorage.setItem("locked","true");
-      locked = true;
+      clearInterval(timer);
 
       document.getElementById("form").style.display="none";
 
       document.getElementById("warning").innerText =
-        "YOU ARE PERMANENTLY LOCKED IN THIS SESSION";
+        "EXAM AUTO SUBMITTED DUE TO CHEATING";
 
-      alert("You are permanently locked!");
+      alert("Auto submitted due to cheating");
     }
   }
 }
@@ -147,17 +138,20 @@ function detectTab(){
 // ================= TIMER =================
 function startTimer(){
 
-  let timer = setInterval(()=>{
+  timer = setInterval(()=>{
 
-    time--;
+    remainingTime--;
 
-    let m = Math.floor(time/60);
-    let s = time%60;
+    // save continuously
+    sessionStorage.setItem("time", remainingTime);
+
+    let m = Math.floor(remainingTime/60);
+    let s = remainingTime%60;
 
     document.getElementById("timer").innerText =
       m+":"+(s<10?"0"+s:s);
 
-    if(time<=0){
+    if(remainingTime <= 0){
 
       clearInterval(timer);
 
