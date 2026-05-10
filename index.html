@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Anti-Cheat Exam System</title>
+<title>Online Exam Secure Lite</title>
 
 <style>
 body {
   font-family: Arial;
-  background: #f4f4f4;
   text-align: center;
+  background: #f4f4f4;
 }
 
 #startScreen {
@@ -26,35 +26,34 @@ iframe {
   border-radius: 8px;
 }
 
-button {
-  padding: 10px 20px;
-  font-size: 16px;
-}
-
 .warning {
   color: red;
   font-weight: bold;
   margin-top: 10px;
+}
+
+button {
+  padding: 10px 20px;
 }
 </style>
 </head>
 
 <body>
 
-<!-- START SCREEN -->
+<!-- START -->
 <div id="startScreen">
   <h2>ONLINE EXAM</h2>
-  <input id="studentName" placeholder="Enter your name" />
+  <input id="name" placeholder="Enter your name">
   <br><br>
   <button onclick="startExam()">START</button>
 </div>
 
-<!-- EXAM SCREEN -->
+<!-- EXAM -->
 <div id="examScreen">
-  <h3>Time remaining: <span id="timer">20:00</span></h3>
+  <h3>Time: <span id="timer">20:00</span></h3>
   <div class="warning" id="warning"></div>
 
-  <iframe id="formFrame"
+  <iframe id="form"
     src="https://docs.google.com/forms/d/e/1FAIpQLSew_ygoZvP1kBtK74vuknMUUkbslawSg9ixdvZMnKoYtSrxQg/viewform?embedded=true">
   </iframe>
 </div>
@@ -64,134 +63,112 @@ button {
 // ================= CONFIG =================
 const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1502994532126560276/UO-dj1ynL5CDJk23Sz8QZt74xCI_QmTQtti-_SG38-Y0O1bALNrNfd5Z34j9Tp0xvMoZ";
 
-// ================= STATE =================
 let name = "";
-let timer;
-let violations = parseInt(localStorage.getItem("violations") || "0");
-let banned = localStorage.getItem("banned") === "true";
-let remainingTime = parseInt(localStorage.getItem("time") || (20 * 60));
+let time = 20 * 60;
+let violations = 0;
+
+// 🔒 session only (reset khi đổi link/tab mới)
+let locked = sessionStorage.getItem("locked") === "true";
 
 // ================= DISCORD =================
-function sendDiscord(msg) {
-  fetch(DISCORD_WEBHOOK, {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({content: "👤 " + name + " | " + msg})
+function log(msg){
+  fetch(DISCORD_WEBHOOK,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({content:"👤 "+name+" | "+msg})
   });
 }
 
 // ================= START =================
-function startExam() {
+function startExam(){
 
-  if (banned) {
-    alert("You are permanently banned from this exam.");
+  if(locked){
+    alert("You are locked from this session.");
     return;
   }
 
-  name = document.getElementById("studentName").value;
+  name = document.getElementById("name").value;
+  if(!name) return alert("Enter name");
 
-  if (!name) {
-    alert("Please enter your name!");
-    return;
-  }
+  document.getElementById("startScreen").style.display="none";
+  document.getElementById("examScreen").style.display="block";
 
-  document.getElementById("startScreen").style.display = "none";
-  document.getElementById("examScreen").style.display = "block";
-
-  sendDiscord("STARTED EXAM");
+  log("START EXAM");
 
   startTimer();
 
-  document.addEventListener("visibilitychange", handleViolation);
+  document.addEventListener("visibilitychange", detectTab);
+  window.addEventListener("blur", detectTab);
 
-  document.addEventListener("copy", e => e.preventDefault());
-  document.addEventListener("paste", e => e.preventDefault());
-  document.addEventListener("contextmenu", e => e.preventDefault());
+  document.addEventListener("copy", e=>e.preventDefault());
+  document.addEventListener("paste", e=>e.preventDefault());
+  document.addEventListener("contextmenu", e=>e.preventDefault());
 }
 
-// ================= VIOLATION =================
-function handleViolation() {
+// ================= TAB DETECT =================
+function detectTab(){
 
-  if (document.hidden) {
+  if(document.hidden || !document.hasFocus()){
 
     violations++;
-    localStorage.setItem("violations", violations);
 
-    sendDiscord("TAB SWITCH DETECTED | Attempt: " + violations);
+    log("TAB SWITCH | attempt " + violations);
 
-    // ================= FIRST VIOLATION =================
-    if (violations === 1) {
+    // ===== FIRST VIOLATION =====
+    if(violations === 1){
 
-      // save current time before reload
-      localStorage.setItem("time", remainingTime);
+      log("WARNING 1 - KICK USER");
 
-      sendDiscord("WARNING 1 - STUDENT KICKED");
+      alert("Violation 1 - You will be removed");
 
-      document.getElementById("warning").innerText =
-        "Warning 1: You were removed from the exam.";
-
-      alert("Violation 1 detected. You will be removed.");
-
-      setTimeout(() => location.reload(), 500);
+      setTimeout(()=>{
+        location.reload();
+      },500);
     }
 
-    // ================= SECOND VIOLATION =================
-    if (violations >= 2) {
+    // ===== SECOND VIOLATION =====
+    if(violations >= 2){
 
-      sendDiscord("FINAL VIOLATION - STUDENT BANNED");
+      log("FINAL VIOLATION - SESSION LOCKED");
 
-      localStorage.setItem("banned", "true");
+      sessionStorage.setItem("locked","true");
+      locked = true;
+
+      document.getElementById("form").style.display="none";
 
       document.getElementById("warning").innerText =
-        "You are permanently banned.";
+        "YOU ARE PERMANENTLY LOCKED IN THIS SESSION";
 
-      alert("You are permanently banned!");
-
-      lockExam(true);
+      alert("You are permanently locked!");
     }
   }
 }
 
 // ================= TIMER =================
-function startTimer() {
+function startTimer(){
 
-  timer = setInterval(() => {
+  let timer = setInterval(()=>{
 
-    remainingTime--;
+    time--;
 
-    // save continuously (important)
-    localStorage.setItem("time", remainingTime);
-
-    let m = Math.floor(remainingTime / 60);
-    let s = remainingTime % 60;
+    let m = Math.floor(time/60);
+    let s = time%60;
 
     document.getElementById("timer").innerText =
-      m + ":" + (s < 10 ? "0" + s : s);
+      m+":"+(s<10?"0"+s:s);
 
-    if (remainingTime <= 0) {
+    if(time<=0){
+
       clearInterval(timer);
 
-      sendDiscord("TIME UP - AUTO SUBMIT");
+      log("TIME UP");
 
-      lockExam(true);
+      document.getElementById("form").style.display="none";
+
+      alert("Time is up!");
     }
 
-  }, 1000);
-}
-
-// ================= LOCK =================
-function lockExam(autoSubmit = false) {
-
-  clearInterval(timer);
-
-  document.getElementById("formFrame").style.display = "none";
-
-  if (autoSubmit) {
-    sendDiscord("EXAM AUTO SUBMITTED OR LOCKED");
-  }
-
-  document.getElementById("warning").innerText =
-    "Exam closed.";
+  },1000);
 }
 
 </script>
