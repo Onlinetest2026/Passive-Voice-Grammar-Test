@@ -1,345 +1,176 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-
-<title>Anti Cheat Exam</title>
+<meta charset="UTF-8">
+<title>Anti Cheat Online Exam</title>
 
 <style>
-    *{
-        margin:0;
-        padding:0;
-        box-sizing:border-box;
-        font-family:Arial, Helvetica, sans-serif;
-    }
+body {
+  font-family: Arial;
+  background: #f4f4f4;
+  text-align: center;
+}
 
-    body{
-        background:#f4f6f9;
-        display:flex;
-        justify-content:center;
-        align-items:center;
-        height:100vh;
-    }
+#startScreen {
+  margin-top: 120px;
+}
 
-    .container{
-        width:420px;
-        background:white;
-        padding:35px;
-        border-radius:18px;
-        box-shadow:0 10px 25px rgba(0,0,0,0.1);
-        text-align:center;
-    }
+#examScreen {
+  display: none;
+}
 
-    h1{
-        margin-bottom:20px;
-        color:#222;
-    }
+iframe {
+  width: 92%;
+  height: 600px;
+  border: 2px solid #333;
+  border-radius: 8px;
+}
 
-    input{
-        width:100%;
-        padding:14px;
-        border-radius:10px;
-        border:1px solid #ccc;
-        margin-bottom:20px;
-        font-size:16px;
-    }
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+}
 
-    button{
-        width:100%;
-        padding:14px;
-        border:none;
-        background:#111827;
-        color:white;
-        font-size:18px;
-        border-radius:10px;
-        cursor:pointer;
-        transition:0.2s;
-    }
-
-    button:hover{
-        opacity:0.9;
-    }
-
-    .hidden{
-        display:none;
-    }
-
-    .timer{
-        font-size:22px;
-        font-weight:bold;
-        margin-bottom:20px;
-        color:#dc2626;
-    }
-
-    iframe{
-        width:100%;
-        height:500px;
-        border:none;
-        border-radius:10px;
-    }
-
-    .warning{
-        margin-top:15px;
-        color:red;
-        font-weight:bold;
-    }
+.warning {
+  color: red;
+  font-weight: bold;
+  margin-top: 10px;
+}
 </style>
 </head>
 
 <body>
 
-<div class="container">
+<!-- START SCREEN -->
+<div id="startScreen">
+  <h2>KIỂM TRA ONLINE</h2>
+  <input id="studentName" placeholder="Nhập tên của bạn" />
+  <br><br>
+  <button onclick="startExam()">START</button>
+</div>
 
-    <!-- LOGIN -->
-    <div id="loginBox">
-        <h1>START</h1>
+<!-- EXAM SCREEN -->
+<div id="examScreen">
+  <h3>Thời gian còn lại: <span id="timer">20:00</span></h3>
+  <div class="warning" id="warning"></div>
 
-        <input type="text" id="studentName" placeholder="Nhập tên học sinh">
-
-        <button onclick="startExam()">Bắt đầu làm bài</button>
-    </div>
-
-    <!-- EXAM -->
-    <div id="examBox" class="hidden">
-
-        <div class="timer" id="timer">
-            20:00
-        </div>
-
-        <!-- https://docs.google.com/forms/d/e/1FAIpQLSew_ygoZvP1kBtK74vuknMUUkbslawSg9ixdvZMnKoYtSrxQg/viewform?embedded=true -->
-        <iframe 
-        id="examFrame"
-        src="https://docs.google.com/forms/d/e/FORM_ID/viewform?embedded=true">
-        </iframe>
-
-        <div class="warning" id="warningText"></div>
-
-    </div>
-
+  <iframe id="formFrame"
+    src="https://docs.google.com/forms/d/e/1FAIpQLSew_ygoZvP1kBtK74vuknMUUkbslawSg9ixdvZMnKoYtSrxQg/viewform?embedded=true">
+  </iframe>
 </div>
 
 <script>
+// ================= CONFIG =================
+const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1502994532126560276/UO-dj1ynL5CDJk23Sz8QZt74xCI_QmTQtti-_SG38-Y0O1bALNrNfd5Z34j9Tp0xvMoZ";
+let name = "";
+let time = 20 * 60;
+let violations = 0;
 
-//////////////////////////////////////////////////////
-// CẤU HÌNH
-//////////////////////////////////////////////////////
-
-// WEBHOOK DISCORD
-const webhookURL = "https://discord.com/api/webhooks/1502994532126560276/UO-dj1ynL5CDJk23Sz8QZt74xCI_QmTQtti-_SG38-Y0O1bALNrNfd5Z34j9Tp0xvMoZ";
-
-// THỜI GIAN
-let totalTime = 20 * 60;
-
-// BIẾN
-let student = "";
-let examStarted = false;
-let cheated = false;
-
-//////////////////////////////////////////////////////
-// BẮT ĐẦU
-//////////////////////////////////////////////////////
-
-function startExam(){
-
-    student = document.getElementById("studentName").value.trim();
-
-    if(student === ""){
-        alert("Vui lòng nhập tên");
-        return;
-    }
-
-    document.getElementById("loginBox").classList.add("hidden");
-    document.getElementById("examBox").classList.remove("hidden");
-
-    examStarted = true;
-
-    sendDiscord(
-        "🟢 Học sinh bắt đầu làm bài: **" + student + "**"
-    );
-
-    startTimer();
+// load lại trạng thái nếu có
+if (localStorage.getItem("violations")) {
+  violations = parseInt(localStorage.getItem("violations"));
 }
 
-//////////////////////////////////////////////////////
-// TIMER 20 PHÚT
-//////////////////////////////////////////////////////
-
-function startTimer(){
-
-    const timer = document.getElementById("timer");
-
-    const countdown = setInterval(() => {
-
-        let minutes = Math.floor(totalTime / 60);
-        let seconds = totalTime % 60;
-
-        seconds = seconds < 10 ? "0" + seconds : seconds;
-
-        timer.innerHTML = minutes + ":" + seconds;
-
-        totalTime--;
-
-        if(totalTime < 0){
-
-            clearInterval(countdown);
-
-            sendDiscord(
-                "⏰ Hết giờ làm bài: **" + student + "**"
-            );
-
-            alert("Đã hết thời gian làm bài!");
-
-            endExam();
-        }
-
-    },1000);
+// ================= DISCORD =================
+function sendDiscord(msg) {
+  fetch(DISCORD_WEBHOOK, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({content: msg})
+  });
 }
 
-//////////////////////////////////////////////////////
-// KẾT THÚC
-//////////////////////////////////////////////////////
+// ================= START EXAM =================
+function startExam() {
+  name = document.getElementById("studentName").value;
 
-function endExam(){
+  if (!name) {
+    alert("Vui lòng nhập tên!");
+    return;
+  }
 
-    document.body.innerHTML = `
-        <div style="
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            height:100vh;
-            font-size:30px;
-            font-weight:bold;
-            color:red;
-            background:#fff;
-        ">
-            BÀI THI ĐÃ KẾT THÚC
-        </div>
-    `;
-}
+  document.getElementById("startScreen").style.display = "none";
+  document.getElementById("examScreen").style.display = "block";
 
-//////////////////////////////////////////////////////
-// CHỐNG COPY
-//////////////////////////////////////////////////////
+  sendDiscord("🟢 " + name + " bắt đầu bài thi");
 
-document.addEventListener("copy", function(e){
+  startTimer();
 
+  document.addEventListener("visibilitychange", handleTabSwitch);
+
+  document.addEventListener("copy", function(e) {
     e.preventDefault();
-
-    if(examStarted){
-        alert("Không được copy!");
-    }
-
-});
-
-//////////////////////////////////////////////////////
-// CHẶN CHUỘT PHẢI
-//////////////////////////////////////////////////////
-
-document.addEventListener("contextmenu", function(e){
-
-    e.preventDefault();
-
-});
-
-//////////////////////////////////////////////////////
-// PHÁT HIỆN CHUYỂN TAB
-//////////////////////////////////////////////////////
-
-document.addEventListener("visibilitychange", function(){
-
-    if(document.hidden && examStarted && !cheated){
-
-        cheated = true;
-
-        document.getElementById("warningText").innerHTML =
-            "PHÁT HIỆN GIAN LẬN!";
-
-        sendDiscord(
-            "🚨 Học sinh gian lận: **" + student + "** (Chuyển tab)"
-        );
-
-        alert("Bạn đã chuyển tab. Bài thi kết thúc!");
-
-        endExam();
-    }
-
-});
-
-//////////////////////////////////////////////////////
-// PHÁT HIỆN RỜI CỬA SỔ
-//////////////////////////////////////////////////////
-
-window.addEventListener("blur", function(){
-
-    if(examStarted && !cheated){
-
-        cheated = true;
-
-        document.getElementById("warningText").innerHTML =
-            "PHÁT HIỆN GIAN LẬN!";
-
-        sendDiscord(
-            "🚨 Học sinh gian lận: **" + student + "** (Rời cửa sổ)"
-        );
-
-        alert("Bạn đã rời cửa sổ bài thi!");
-
-        endExam();
-    }
-
-});
-
-//////////////////////////////////////////////////////
-// GỬI DISCORD
-//////////////////////////////////////////////////////
-
-function sendDiscord(message){
-
-    fetch(webhookURL, {
-
-        method:"POST",
-
-        headers:{
-            "Content-Type":"application/json"
-        },
-
-        body:JSON.stringify({
-            content:message
-        })
-
-    });
-
+    alert("Không được copy!");
+  });
 }
 
-//////////////////////////////////////////////////////
-// CHẶN PHÍM TẮT
-//////////////////////////////////////////////////////
+// ================= TAB CHECK =================
+function handleTabSwitch() {
+  if (document.hidden) {
+    violations++;
+    localStorage.setItem("violations", violations);
 
-document.addEventListener("keydown", function(e){
+    // ===== LẦN 1 =====
+    if (violations === 1) {
+      sendDiscord("⚠️ " + name + " chuyển tab (LẦN 1)");
 
-    // Ctrl+C
-    if(e.ctrlKey && e.key.toLowerCase() === "c"){
-        e.preventDefault();
+      document.getElementById("warning").innerText =
+        "⚠️ Vi phạm lần 1 - bạn sẽ bị đưa ra ngoài!";
+
+      alert("Bạn đã vi phạm lần 1!");
+
+      setTimeout(() => {
+        location.reload();
+      }, 500);
     }
 
-    // Ctrl+U
-    if(e.ctrlKey && e.key.toLowerCase() === "u"){
-        e.preventDefault();
+    // ===== LẦN 2 =====
+    if (violations >= 2) {
+      sendDiscord("❌ " + name + " chuyển tab (LẦN 2) - BỊ LOẠI");
+
+      document.getElementById("warning").innerText =
+        "❌ BẠN ĐÃ BỊ LOẠI KHỎI BÀI THI";
+
+      alert("Bạn đã bị loại khỏi bài thi!");
+
+      lockExam(true);
     }
+  }
+}
 
-    // F12
-    if(e.key === "F12"){
-        e.preventDefault();
+// ================= LOCK EXAM =================
+function lockExam(autoSubmit = false) {
+  document.getElementById("formFrame").style.display = "none";
+
+  if (autoSubmit) {
+    sendDiscord("📤 " + name + " bị khóa bài và coi như nộp bài");
+  }
+}
+
+// ================= TIMER =================
+function startTimer() {
+  let t = time;
+
+  let timer = setInterval(() => {
+    t--;
+
+    let m = Math.floor(t / 60);
+    let s = t % 60;
+
+    document.getElementById("timer").innerText =
+      m + ":" + (s < 10 ? "0" + s : s);
+
+    if (t <= 0) {
+      clearInterval(timer);
+
+      sendDiscord("⏰ " + name + " hết giờ làm bài");
+
+      alert("Hết giờ!");
+
+      lockExam(true);
     }
-
-    // Ctrl+Shift+I
-    if(e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "i"){
-        e.preventDefault();
-    }
-
-});
-
+  }, 1000);
+}
 </script>
 
 </body>
