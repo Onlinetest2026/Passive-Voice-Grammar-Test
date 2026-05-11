@@ -3,40 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Exam System - Final Fix</title>
+    <title>Secure Exam - Standard Logic</title>
     <style>
         :root { --primary: #2563eb; --danger: #dc2626; --bg: #f8fafc; }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg); margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        #login-screen, #exam-screen, #banned-screen { background: white; padding: 2.5rem; border-radius: 1rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); text-align: center; width: 90%; max-width: 950px; }
-        #exam-screen { display: none; height: 95vh; flex-direction: column; }
-        #banned-screen { display: none; border-top: 8px solid var(--danger); }
+        #login-screen, #exam-screen, #banned-screen { background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 20px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 950px; box-sizing: border-box; }
+        #exam-screen { display: none; height: 98vh; flex-direction: column; padding: 1rem; }
+        #banned-screen { display: none; border-top: 8px solid var(--danger); cursor: pointer; }
         iframe { width: 100%; flex-grow: 1; border: 1px solid #e2e8f0; border-radius: 0.5rem; }
-        .timer-display { font-size: 1.8rem; font-weight: 800; color: var(--primary); margin-bottom: 1rem; }
-        input { padding: 0.75rem; width: 280px; border: 2px solid #e2e8f0; border-radius: 0.5rem; font-size: 1rem; margin-bottom: 1rem; outline: none; }
-        button { padding: 0.75rem 2rem; background: var(--primary); color: white; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; }
-        .footer-note { font-size: 0.8rem; color: #94a3b8; margin-top: 20px; }
+        .timer-display { font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; }
+        input { padding: 0.75rem; width: 100%; max-width: 280px; border: 2px solid #e2e8f0; border-radius: 0.5rem; font-size: 1rem; margin-bottom: 1rem; outline: none; }
+        button { padding: 0.75rem 2rem; background: var(--primary); color: white; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; font-size: 1rem; }
+        button:hover { opacity: 0.9; }
     </style>
 </head>
 <body>
 
+    <!-- MÀN HÌNH NHẬP TÊN -->
     <div id="login-screen">
-        <h1>Examination Portal</h1>
-        <p>Enter your full name to start (20 Minutes).</p>
-        <input type="text" id="studentName" placeholder="Full Name..." autocomplete="off">
+        <h1>Online Examination</h1>
+        <p>Please enter your full name to start (20 Minutes).</p>
+        <input type="text" id="studentName" placeholder="Enter Full Name..." autocomplete="off">
         <br>
-        <button onclick="initExam()">START EXAM</button>
-        <p class="footer-note">Note: Tab switching is monitored.</p>
+        <button onclick="initExam()">START</button>
     </div>
 
+    <!-- MÀN HÌNH BÀI LÀM -->
     <div id="exam-screen">
         <div class="timer-display" id="timerDisplay">20:00</div>
         <iframe id="quizFrame" src="https://docs.google.com/forms/d/e/1FAIpQLSew_ygoZvP1kBtK74vuknMUUkbslawSg9ixdvZMnKoYtSrxQg/viewform?embedded=true"></iframe>
     </div>
 
-    <div id="banned-screen">
+    <!-- MÀN HÌNH BỊ KHÓA -->
+    <div id="banned-screen" onclick="handleSecretTap()">
         <h1 style="color: var(--danger)">ACCESS DENIED</h1>
         <p id="reasonText" style="font-weight: bold;"></p>
-        <p>Your violation has been reported to Discord.</p>
+        <p>Your session has been terminated. Please contact your teacher.</p>
     </div>
 
     <script>
@@ -44,9 +46,10 @@
         const TEACHER_PASSWORD = "123";
 
         let timer;
-        let violationLock = false; // Biến khóa để tránh gửi trùng lặp
+        let isMonitoring = false; 
+        let tapCount = 0;
 
-        // Lấy dữ liệu từ LocalStorage hoặc khởi tạo mới
+        // Tải dữ liệu từ LocalStorage
         let timeLeft = localStorage.getItem('timeLeft') ? parseInt(localStorage.getItem('timeLeft')) : 1200;
         let violationCount = localStorage.getItem('violationCount') ? parseInt(localStorage.getItem('violationCount')) : 0;
         let isBanned = localStorage.getItem('isBanned') === 'true';
@@ -54,37 +57,53 @@
 
         window.onload = () => {
             if (isBanned) {
-                showBannedScreen("Disqualified due to multiple tab switches.");
+                showBannedScreen("Disqualified: Multiple tab switches.");
             } else if (activeStudent !== "") {
-                // Nếu đang làm dở mà bị reload (do lần 1), quay lại bài làm luôn
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('exam-screen').style.display = 'flex';
-                startCountdown();
-                startMonitoring();
+                // Nếu học sinh đã nhập tên trước đó (sau khi reload lần 1), 
+                // điền sẵn tên vào ô input để họ chỉ cần nhấn START lại.
+                document.getElementById('studentName').value = activeStudent;
             }
         };
 
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.shiftKey && e.key === 'R') {
-                if (prompt("Password:") === TEACHER_PASSWORD) {
-                    localStorage.clear();
-                    location.reload();
-                }
+        // Hàm Reset dành cho giáo viên
+        function adminReset() {
+            const pass = prompt("Enter Teacher Password to Reset:");
+            if (pass === TEACHER_PASSWORD) {
+                isMonitoring = false;
+                localStorage.clear(); // Xóa sạch dữ liệu gian lận và thời gian
+                alert("System Reset! You can now start over.");
+                location.reload();
             }
-        });
+        }
 
+        // Sự kiện Reset (Máy tính & Điện thoại)
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'R') { e.preventDefault(); adminReset(); }
+        });
+        function handleSecretTap() {
+            tapCount++;
+            if (tapCount >= 5) { adminReset(); tapCount = 0; }
+            setTimeout(() => { tapCount = 0; }, 2000);
+        }
+
+        // BẮT ĐẦU LÀM BÀI (Đây là lúc bắt đầu tính gian lận)
         function initExam() {
             const name = document.getElementById('studentName').value;
             if (!name) return alert("Please enter your name!");
             
             activeStudent = name;
             localStorage.setItem('activeStudent', name);
+
+            // Chuyển giao diện
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('exam-screen').style.display = 'flex';
             
-            sendDiscord("🚀 STARTED EXAM", 65280);
+            // Bắt đầu các tiến trình
             startCountdown();
             startMonitoring();
+            
+            // Thông báo Discord
+            sendDiscord("🚀 STARTED EXAM", 65280);
         }
 
         function startCountdown() {
@@ -93,37 +112,43 @@
                 if (timeLeft > 0) {
                     timeLeft--;
                     localStorage.setItem('timeLeft', timeLeft);
-                    let m = Math.floor(timeLeft / 60);
-                    let s = timeLeft % 60;
-                    document.getElementById('timerDisplay').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-                } else {
-                    forceSubmit("Time Expired");
-                }
+                    updateUI();
+                } else { forceSubmit("Time Expired"); }
             }, 1000);
+            updateUI();
+        }
+
+        function updateUI() {
+            let m = Math.floor(timeLeft / 60);
+            let s = timeLeft % 60;
+            document.getElementById('timerDisplay').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
         }
 
         function startMonitoring() {
-            document.addEventListener("visibilitychange", () => {
-                if (document.hidden && !violationLock) {
-                    handleViolation();
-                }
-            });
+            isMonitoring = true;
+            document.addEventListener("visibilitychange", checkViolation);
+            window.onblur = checkViolation;
+        }
+
+        function checkViolation() {
+            // Chỉ bắt lỗi khi đã ở trong chế độ Monitoring
+            if (isMonitoring && (document.hidden || !document.hasFocus())) {
+                handleViolation();
+            }
         }
 
         function handleViolation() {
-            violationLock = true; // Khóa ngay lập tức để không chạy lại lần 2 khi đang xử lý
+            isMonitoring = false; // Tắt monitor tạm thời để tránh lặp
             violationCount++;
             localStorage.setItem('violationCount', violationCount);
 
-            const time = document.getElementById('timerDisplay').innerText;
-
             if (violationCount === 1) {
                 sendDiscord("⚠️ VIOLATION 1: Tab Switched", 16776960, true);
-                alert("WARNING: Tab switch detected! You are kicked out. One chance left.");
+                alert("WARNING: Tab switch detected! You are kicked out. Please press START again to continue.");
                 location.reload(); 
             } else {
                 localStorage.setItem('isBanned', 'true');
-                sendDiscord("🚫 VIOLATION 2: Final & Submitted", 16711680, true);
+                sendDiscord("🚫 VIOLATION 2: Final Disqualified", 16711680, true);
                 forceSubmit("Disqualified (Second Violation)");
             }
         }
@@ -131,29 +156,25 @@
         function sendDiscord(status, color, useBeacon = false) {
             const payload = {
                 embeds: [{
-                    title: "Security Monitor",
+                    title: "Exam Security Monitor",
                     color: color,
                     fields: [
                         { name: "Student", value: `**${activeStudent}**`, inline: true },
                         { name: "Event", value: status, inline: true },
-                        { name: "Time", value: document.getElementById('timerDisplay').innerText, inline: true }
+                        { name: "Time Remaining", value: document.getElementById('timerDisplay').innerText, inline: true }
                     ],
                     timestamp: new Date()
                 }]
             };
-
             if (useBeacon && navigator.sendBeacon) {
                 navigator.sendBeacon(DISCORD_ENDPOINT, new Blob([JSON.stringify(payload)], {type: 'application/json'}));
             } else {
-                fetch(DISCORD_ENDPOINT, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
+                fetch(DISCORD_ENDPOINT, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }).catch(()=>{});
             }
         }
 
         function forceSubmit(reason) {
+            isMonitoring = false;
             clearInterval(timer);
             document.getElementById('exam-screen').innerHTML = ""; 
             showBannedScreen(reason);
