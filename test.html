@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Exam System - Final Fix</title>
+    <style>
+        :root { --primary: #2563eb; --danger: #dc2626; --bg: #f8fafc; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #login-screen, #exam-screen, #banned-screen { background: white; padding: 2.5rem; border-radius: 1rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); text-align: center; width: 90%; max-width: 950px; }
+        #exam-screen { display: none; height: 95vh; flex-direction: column; }
+        #banned-screen { display: none; border-top: 8px solid var(--danger); }
+        iframe { width: 100%; flex-grow: 1; border: 1px solid #e2e8f0; border-radius: 0.5rem; }
+        .timer-display { font-size: 1.8rem; font-weight: 800; color: var(--primary); margin-bottom: 1rem; }
+        input { padding: 0.75rem; width: 280px; border: 2px solid #e2e8f0; border-radius: 0.5rem; font-size: 1rem; margin-bottom: 1rem; outline: none; }
+        button { padding: 0.75rem 2rem; background: var(--primary); color: white; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; }
+        .footer-note { font-size: 0.8rem; color: #94a3b8; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <h1>Examination Portal</h1>
+        <p>Enter your full name to start (20 Minutes).</p>
+        <input type="text" id="studentName" placeholder="Full Name..." autocomplete="off">
+        <br>
+        <button onclick="initExam()">START EXAM</button>
+        <p class="footer-note">Note: Tab switching is monitored.</p>
+    </div>
+
+    <div id="exam-screen">
+        <div class="timer-display" id="timerDisplay">20:00</div>
+        <iframe id="quizFrame" src="https://docs.google.com/forms/d/e/1FAIpQLSew_ygoZvP1kBtK74vuknMUUkbslawSg9ixdvZMnKoYtSrxQg/viewform?embedded=true"></iframe>
+    </div>
+
+    <div id="banned-screen">
+        <h1 style="color: var(--danger)">ACCESS DENIED</h1>
+        <p id="reasonText" style="font-weight: bold;"></p>
+        <p>Your violation has been reported to Discord.</p>
+    </div>
+
+    <script>
+        const DISCORD_ENDPOINT = "https://discord.com/api/webhooks/1502994532126560276/UO-dj1ynL5CDJk23Sz8QZt74xCI_QmTQtti-_SG38-Y0O1bALNrNfd5Z34j9Tp0xvMoZ";
+        const TEACHER_PASSWORD = "123";
+
+        let timer;
+        let violationLock = false; // Biến khóa để tránh gửi trùng lặp
+
+        // Lấy dữ liệu từ LocalStorage hoặc khởi tạo mới
+        let timeLeft = localStorage.getItem('timeLeft') ? parseInt(localStorage.getItem('timeLeft')) : 1200;
+        let violationCount = localStorage.getItem('violationCount') ? parseInt(localStorage.getItem('violationCount')) : 0;
+        let isBanned = localStorage.getItem('isBanned') === 'true';
+        let activeStudent = localStorage.getItem('activeStudent') || "";
+
+        window.onload = () => {
+            if (isBanned) {
+                showBannedScreen("Disqualified due to multiple tab switches.");
+            } else if (activeStudent !== "") {
+                // Nếu đang làm dở mà bị reload (do lần 1), quay lại bài làm luôn
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('exam-screen').style.display = 'flex';
+                startCountdown();
+                startMonitoring();
+            }
+        };
+
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+                if (prompt("Password:") === TEACHER_PASSWORD) {
+                    localStorage.clear();
+                    location.reload();
+                }
+            }
+        });
+
+        function initExam() {
+            const name = document.getElementById('studentName').value;
+            if (!name) return alert("Please enter your name!");
+            
+            activeStudent = name;
+            localStorage.setItem('activeStudent', name);
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('exam-screen').style.display = 'flex';
+            
+            sendDiscord("🚀 STARTED EXAM", 65280);
+            startCountdown();
+            startMonitoring();
+        }
+
+        function startCountdown() {
+            if (timer) clearInterval(timer);
+            timer = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    localStorage.setItem('timeLeft', timeLeft);
+                    let m = Math.floor(timeLeft / 60);
+                    let s = timeLeft % 60;
+                    document.getElementById('timerDisplay').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+                } else {
+                    forceSubmit("Time Expired");
+                }
+            }, 1000);
+        }
+
+        function startMonitoring() {
+            document.addEventListener("visibilitychange", () => {
+                if (document.hidden && !violationLock) {
+                    handleViolation();
+                }
+            });
+        }
+
+        function handleViolation() {
+            violationLock = true; // Khóa ngay lập tức để không chạy lại lần 2 khi đang xử lý
+            violationCount++;
+            localStorage.setItem('violationCount', violationCount);
+
+            const time = document.getElementById('timerDisplay').innerText;
+
+            if (violationCount === 1) {
+                sendDiscord("⚠️ VIOLATION 1: Tab Switched", 16776960, true);
+                alert("WARNING: Tab switch detected! You are kicked out. One chance left.");
+                location.reload(); 
+            } else {
+                localStorage.setItem('isBanned', 'true');
+                sendDiscord("🚫 VIOLATION 2: Final & Submitted", 16711680, true);
+                forceSubmit("Disqualified (Second Violation)");
+            }
+        }
+
+        function sendDiscord(status, color, useBeacon = false) {
+            const payload = {
+                embeds: [{
+                    title: "Security Monitor",
+                    color: color,
+                    fields: [
+                        { name: "Student", value: `**${activeStudent}**`, inline: true },
+                        { name: "Event", value: status, inline: true },
+                        { name: "Time", value: document.getElementById('timerDisplay').innerText, inline: true }
+                    ],
+                    timestamp: new Date()
+                }]
+            };
+
+            if (useBeacon && navigator.sendBeacon) {
+                navigator.sendBeacon(DISCORD_ENDPOINT, new Blob([JSON.stringify(payload)], {type: 'application/json'}));
+            } else {
+                fetch(DISCORD_ENDPOINT, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+            }
+        }
+
+        function forceSubmit(reason) {
+            clearInterval(timer);
+            document.getElementById('exam-screen').innerHTML = ""; 
+            showBannedScreen(reason);
+        }
+
+        function showBannedScreen(reason) {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('exam-screen').style.display = 'none';
+            document.getElementById('banned-screen').style.display = 'block';
+            document.getElementById('reasonText').innerText = `Status: ${reason}`;
+        }
+    </script>
+</body>
+</html>
