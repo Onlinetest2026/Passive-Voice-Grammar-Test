@@ -3,169 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Proctoring Monitor System</title>
+    <title>Secure Online Examination System</title>
     <style>
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: #0f172a;
-            color: #f8fafc;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-            user-select: none;
+        :root {
+            --primary: #2563eb;
+            --danger: #dc2626;
+            --bg: #f8fafc;
         }
-
-        #login-container, #exam-container {
-            background: #1e293b;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            text-align: center;
-            width: 90%;
-            max-width: 900px;
-        }
-
-        #exam-container { display: none; height: 95vh; flex-direction: column; }
-
-        input {
-            padding: 12px; width: 250px; border-radius: 6px; border: 1px solid #334155;
-            background: #0f172a; color: white; margin-bottom: 20px;
-        }
-
-        button {
-            padding: 12px 30px; background: #38bdf8; color: #0f172a;
-            border: none; border-radius: 6px; cursor: pointer; font-weight: bold;
-        }
-
-        #timer { font-size: 1.8rem; color: #fb7185; margin-bottom: 10px; font-weight: bold; }
-
-        iframe { flex-grow: 1; width: 100%; border: none; border-radius: 8px; background: white; }
-
-        .overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 23, 42, 0.95); display: none;
-            flex-direction: column; justify-content: center; align-items: center; z-index: 100;
-        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
+        #setup-container, #exam-container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 800px; }
+        #exam-container { display: none; height: 90vh; flex-direction: column; }
+        input { padding: 10px; width: 80%; margin-bottom: 1rem; border: 1px solid #cbd5e1; border-radius: 6px; }
+        button { background: var(--primary); color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        #timer { font-size: 1.5rem; color: var(--danger); font-weight: bold; margin-bottom: 10px; }
+        iframe { flex-grow: 1; border: none; border-radius: 8px; width: 100%; }
+        .warning-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: white; display: none; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
     </style>
 </head>
-<body oncontextmenu="return false;">
+<body>
 
-    <!-- Form nhập tên -->
-    <div id="login-container">
-        <h1 style="color: #38bdf8;">EXAM SYSTEM</h1>
-        <input type="text" id="stdName" placeholder="Enter Your Full Name..." autocomplete="off">
+    <!-- Setup Screen -->
+    <div id="setup-container">
+        <h2>Online Examination</h2>
+        <p>Please enter your full name to begin. Switching tabs or copying is strictly prohibited.</p>
+        <input type="text" id="studentName" placeholder="Enter Full Name..." required>
         <br>
-        <button onclick="startExam()">START TEST</button>
+        <button onclick="startExam()">START EXAM</button>
     </div>
 
-    <!-- Màn hình làm bài -->
+    <!-- Exam Screen -->
     <div id="exam-container">
-        <div id="timer">20:00</div>
-        <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSew_ygoZvP1kBtK74vuknMUUkbslawSg9ixdvZMnKoYtSrxQg/viewform?embedded=true"></iframe>
+        <div id="timer">Time Remaining: 20:00</div>
+        <iframe id="examFrame" src="https://docs.google.com/forms/d/e/1FAIpQLSew_ygoZvP1kBtK74vuknMUUkbslawSg9ixdvZMnKoYtSrxQg/viewform?embedded=true"></iframe>
     </div>
 
-    <!-- Màn hình đuổi ra khi chuyển tab -->
-    <div id="overlay" class="overlay">
-        <h1 style="color: #f43f5e; font-size: 3rem;">TAB SWITCH DETECTED!</h1>
-        <p id="violation-info" style="font-size: 1.5rem;"></p>
-        <p>This incident has been logged and sent to your teacher.</p>
-        <button onclick="resumeExam()">CONTINUE TEST</button>
+    <!-- Kick Overlay -->
+    <div id="warning-overlay" class="warning-overlay">
+        <h1>VIOLATION DETECTED</h1>
+        <p id="violation-msg">You have been removed for switching tabs.</p>
+        <button onclick="location.reload()">Reload & Continue</button>
     </div>
 
     <script>
-        // Cấu hình
-        const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1502994532126560276/UO-dj1ynL5CDJk23Sz8QZt74xCI_QmTQtti-_SG38-Y0O1bALNrNfd5Z34j9Tp0xvMoZ";
-        const TOTAL_TIME = 20 * 60;
-
-        // Khởi tạo
-        let name = localStorage.getItem('exam_name') || "";
-        let timeLeft = localStorage.getItem('exam_time') ? parseInt(localStorage.getItem('exam_time')) : TOTAL_TIME;
+        const WEBHOOK_URL = "https://discord.com/api/webhooks/1502994532126560276/UO-dj1ynL5CDJk23Sz8QZt74xCI_QmTQtti-_SG38-Y0O1bALNrNfd5Z34j9Tp0xvMoZ";
+        let timeLeft = localStorage.getItem('examTime') ? parseInt(localStorage.getItem('examTime')) : 1200; // 20 mins
+        let violations = localStorage.getItem('violations') ? parseInt(localStorage.getItem('violations')) : 0;
+        let studentName = "";
+        let timerInterval;
 
         function startExam() {
-            const inputName = document.getElementById('stdName').value.trim();
-            if (!inputName) return alert("Please enter your name!");
+            studentName = document.getElementById('studentName').value;
+            if (!studentName) return alert("Please enter your name!");
             
-            name = inputName;
-            localStorage.setItem('exam_name', name);
-            
-            document.getElementById('login-container').style.display = 'none';
+            document.getElementById('setup-container').style.display = 'none';
             document.getElementById('exam-container').style.display = 'flex';
-
-            runTimer();
-            monitorCheating();
+            
+            startTimer();
+            initAntiCheat();
         }
 
-        function runTimer() {
-            const display = document.getElementById('timer');
-            const countdown = setInterval(() => {
-                let m = Math.floor(timeLeft / 60);
-                let s = timeLeft % 60;
-                display.innerText = `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
-                
-                if (timeLeft <= 0) {
-                    clearInterval(countdown);
-                    alert("Time's up!");
-                }
+        function startTimer() {
+            timerInterval = setInterval(() => {
                 timeLeft--;
-                localStorage.setItem('exam_time', timeLeft);
+                localStorage.setItem('examTime', timeLeft);
+                
+                let mins = Math.floor(timeLeft / 60);
+                let secs = timeLeft % 60;
+                document.getElementById('timer').innerText = `Time Remaining: ${mins}:${secs < 10 ? '0' : ''}${secs}`;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    alert("Time is up! Your work is being submitted.");
+                    location.reload();
+                }
             }, 1000);
         }
 
-        function monitorCheating() {
-            // Sự kiện thoát Tab
-            document.addEventListener("visibilitychange", () => {
-                if (document.hidden) {
-                    // LẤY GIÁ TRỊ MỚI NHẤT TỪ STORAGE ĐỂ CỘNG DỒN (QUAN TRỌNG)
-                    let currentViolations = parseInt(localStorage.getItem('v_count')) || 0;
-                    currentViolations++;
-                    
-                    // LƯU LẠI NGAY LẬP TỨC
-                    localStorage.setItem('v_count', currentViolations);
-
-                    // Đuổi học sinh ra màn hình cảnh báo
-                    document.getElementById('exam-container').style.display = 'none';
-                    document.getElementById('overlay').style.display = 'flex';
-                    document.getElementById('violation-info').innerText = `Violation Count: ${currentViolations}`;
-
-                    // Gửi lên Discord
-                    sendDiscord(currentViolations);
-                }
-            });
-
-            // Chặn Copy-Paste
-            document.oncopy = e => e.preventDefault();
-            document.onpaste = e => e.preventDefault();
-        }
-
-        function resumeExam() {
-            // Khi nhấn Resume, chỉ đơn giản là hiện lại bài và cho làm tiếp
-            document.getElementById('overlay').style.display = 'none';
-            document.getElementById('exam-container').style.display = 'flex';
-        }
-
-        async function sendDiscord(count) {
-            const timeStr = `${Math.floor(timeLeft/60)}m ${timeLeft%60}s`;
+        function reportToDiscord(type) {
+            violations++;
+            localStorage.setItem('violations', violations);
+            
             const payload = {
                 embeds: [{
-                    title: "🚨 PHÁT HIỆN GIAN LẬN",
-                    color: 15548997,
+                    title: "⚠️ Anti-Cheat Alert",
+                    color: 15158332,
                     fields: [
-                        { name: "Học sinh", value: `**${name}**`, inline: true },
-                        { name: "Trạng thái", value: `🛑 **Chuyển Tab Lần ${count}**`, inline: true },
-                        { name: "Thời gian còn lại", value: timeStr, inline: false }
+                        { name: "Student Name", value: studentName, inline: true },
+                        { name: "Violation Type", value: type, inline: true },
+                        { name: "Total Violations", value: violations.toString(), inline: true },
+                        { name: "Time Left", value: document.getElementById('timer').innerText, inline: false }
                     ],
                     timestamp: new Date()
                 }]
             };
 
-            await fetch(DISCORD_WEBHOOK, {
+            fetch(WEBHOOK_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
+
+            kickStudent();
+        }
+
+        function kickStudent() {
+            document.getElementById('warning-overlay').style.display = 'flex';
+            clearInterval(timerInterval);
+        }
+
+        function initAntiCheat() {
+            // 1. Detect Tab Switching
+            window.onblur = () => {
+                reportToDiscord("Tab Switched / Lost Focus");
+            };
+
+            // 2. Disable Copy/Paste/Cut
+            document.addEventListener('copy', (e) => { e.preventDefault(); alert("Copying is disabled!"); });
+            document.addEventListener('paste', (e) => { e.preventDefault(); });
+            
+            // 3. Prevent Right Click
+            document.addEventListener('contextmenu', event => event.preventDefault());
         }
     </script>
 </body>
