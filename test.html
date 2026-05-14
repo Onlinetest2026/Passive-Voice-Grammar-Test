@@ -21,7 +21,7 @@
 
     <!-- MÀN HÌNH NHẬP TÊN -->
     <div id="login-screen">
-        <h1>Passive Voice Grammar Test</h1>
+        <h1>Online Examination</h1>
         <p>Please enter your full name to start (20 Minutes).</p>
         <input type="text" id="studentName" placeholder="Enter Full Name..." autocomplete="off">
         <br>
@@ -31,7 +31,7 @@
     <!-- MÀN HÌNH BÀI LÀM -->
     <div id="exam-screen">
         <div class="timer-display" id="timerDisplay">20:00</div>
-        <iframe id="quizFrame" src="https://docs.google.com/forms/d/e/1FAIpQLSew_ygoZvP1kBtK74vuknMUUkbslawSg9ixdvZMnKoYtSrxQg/viewform?embedded=true"></iframe>
+        <iframe id="quizFrame" src="YOUR_GOOGLE_FORM_LINK_HERE"></iframe>
     </div>
 
     <!-- MÀN HÌNH BỊ KHÓA -->
@@ -42,7 +42,7 @@
     </div>
 
     <script>
-        const DISCORD_ENDPOINT = "https://discord.com/api/webhooks/1502994532126560276/UO-dj1ynL5CDJk23Sz8QZt74xCI_QmTQtti-_SG38-Y0O1bALNrNfd5Z34j9Tp0xvMoZ";
+        const DISCORD_ENDPOINT = "YOUR_DISCORD_WEBHOOK_URL";
         const TEACHER_PASSWORD = "123";
 
         let timer;
@@ -149,9 +149,27 @@
             } else {
                 localStorage.setItem('isBanned', 'true');
                 sendDiscord("🚫 VIOLATION 2: Final Disqualified", 16711680, true);
-                forceSubmit("Disqualified (Second Violation)");
-            }
-        }
+                const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwjnaMotyvA2mmGoUXMd0uvLxXS_MmisZqxtIj1zZo8wMdf5nvHNtX4cZk0GCywkYLd/exec";
+
+function forceSubmit(reason) {
+    isMonitoring = false;
+    clearInterval(timer);
+    
+    // 1. Gửi dữ liệu về Google Sheets của GV ngay lập tức
+    fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors', // Quan trọng để tránh lỗi bảo mật
+        body: JSON.stringify({
+            studentName: activeStudent,
+            timeLeft: document.getElementById('timerDisplay').innerText,
+            status: reason
+        })
+    });
+
+    // 2. Ghi đè màn hình để HS không làm tiếp được
+    document.getElementById('exam-screen').innerHTML = ""; 
+    showBannedScreen(reason);
+}
 
         function sendDiscord(status, color, useBeacon = false) {
             const payload = {
