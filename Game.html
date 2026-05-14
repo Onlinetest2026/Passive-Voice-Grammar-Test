@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Treasure Island</title>
+    <style>
+        :root {
+            --deep-ocean: #002b44;
+            --aqua: #00ecff;
+            --gold-light: #fff176;
+            --gold-main: #ffd700;
+            --gold-dark: #ffa000;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Arial Rounded MT Bold', sans-serif; }
+
+        body { background: var(--deep-ocean); height: 100vh; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+
+        #game-container {
+            width: 100%; max-width: 500px; height: 100%;
+            position: relative; background: linear-gradient(180deg, #00b4db 0%, #004e92 100%);
+            overflow: hidden; display: flex; flex-direction: column; align-items: center;
+        }
+
+        /* Bubbles */
+        .bubble { position: absolute; background: rgba(255, 255, 255, 0.3); border-radius: 50%; bottom: -50px; animation: rise 5s infinite ease-in; }
+        @keyframes rise { 0% { transform: translateY(0); opacity: 0; } 50% { opacity: 0.6; } 100% { transform: translateY(-100vh); opacity: 0; } }
+
+        .screen { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; padding: 20px; z-index: 10; }
+        .hidden { display: none !important; }
+
+        .title { font-size: 3.5rem; color: white; text-align: center; text-shadow: 0 5px 15px rgba(0,0,0,0.5); margin-top: 40px; }
+        .title span { color: var(--gold-main); }
+
+        .big-turtle { font-size: 90px; margin: 20px 0; transform: scaleX(-1); animation: float 3s infinite ease-in-out; }
+        @keyframes float { 0%, 100% { transform: translateY(0) scaleX(-1); } 50% { transform: translateY(-15px) scaleX(-1); } }
+
+        .btn-main {
+            padding: 18px 50px; background: linear-gradient(to bottom, var(--gold-light), var(--gold-dark));
+            border: none; border-radius: 50px; font-size: 1.8rem; font-weight: bold; color: #5d4037;
+            box-shadow: 0 8px 0 #b8860b; cursor: pointer; transition: 0.1s;
+        }
+        .btn-main:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
+
+        .top-bar { width: 100%; display: flex; justify-content: space-around; padding: 12px; background: rgba(0,0,0,0.5); border-radius: 20px; color: white; margin-top: 10px; border: 2px solid var(--aqua); }
+        
+        /* Map & Progress */
+        #map-area { font-size: 6.5rem; margin: 10px 0; transition: filter 0.5s ease, opacity 0.5s ease; }
+        
+        .path { height: 12px; background: rgba(255,255,255,0.2); border-radius: 10px; position: relative; margin: 45px 0 15px; width: 85%; }
+        #turtle-hero { position: absolute; top: -45px; left: 0; font-size: 3.5rem; transform: scaleX(-1); transition: 1s; }
+        .island-goal { position: absolute; right: -5px; top: -45px; font-size: 3.5rem; }
+
+        #word-slots { display: flex; gap: 8px; margin: 15px 0; font-size: 2.5rem; color: white; min-height: 50px; }
+        .slot { border-bottom: 5px solid white; min-width: 32px; text-align: center; text-shadow: 0 3px 5px rgba(0,0,0,0.5); }
+
+        .keyboard { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; width: 100%; padding: 10px; }
+        .key { background: white; border: none; border-radius: 10px; padding: 15px 0; font-size: 1.2rem; font-weight: bold; box-shadow: 0 4px 0 #bdc3c7; cursor: pointer; }
+        .key.used { opacity: 0.3; pointer-events: none; }
+
+        /* Popups */
+        .overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.9); z-index: 100; display: flex; align-items: center; justify-content: center; visibility: hidden; opacity: 0; transition: 0.3s; }
+        .overlay.active { visibility: visible; opacity: 1; }
+        .popup { background: white; width: 92%; padding: 25px; border-radius: 40px; text-align: center; border: 8px solid var(--gold-main); }
+        
+        /* Gold Chest Grid */
+        .chest-container { display: flex; gap: 12px; justify-content: center; margin: 20px 0; }
+        .chest { 
+            width: 95px; height: 95px; 
+            background: linear-gradient(135deg, #ffea00, #ff9100); 
+            border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            font-size: 3.5rem; cursor: pointer; border: 3px solid #fff;
+            box-shadow: 0 8px 0 #d4a017;
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        
+        .chest.open { background: #fffde7; box-shadow: none; transform: translateY(4px); animation: none; }
+        
+        .reward-visual { display: flex; flex-direction: column; align-items: center; animation: pop 0.4s; }
+        @keyframes pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+        .bag-icon { font-size: 3.2rem; }
+        .bag-val { font-size: 1.1rem; font-weight: bold; color: #d35400; }
+
+        .msg { font-size: 2.5rem; font-weight: bold; margin-bottom: 10px; display: block; }
+        .win-msg { color: #27ae60; }
+        .lose-msg { color: #e74c3c; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- Music -->
+    <audio id="bg-music" loop>
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" type="audio/mpeg">
+    </audio>
+
+    <section id="start-screen" class="screen">
+        <h1 class="title">TREASURE<br><span>ISLAND</span></h1>
+        <div class="big-turtle">🐢</div>
+        <button class="btn-main" onclick="startGame()">LET'S GO ➔</button>
+    </section>
+
+    <section id="game-screen" class="screen hidden">
+        <div class="top-bar">
+            <span>💰 <span id="coins">0</span></span>
+            <span>💎 <span id="gems">0</span></span>
+            <span>🧩 <span id="puzzles">0/4</span></span>
+        </div>
+        <div class="path">
+            <div id="turtle-hero">🐢</div>
+            <div class="island-goal">🏝️</div>
+        </div>
+        
+        <!-- Interactive Map -->
+        <div id="map-area">🗺️</div>
+
+        <div id="hint-text" style="color:white; font-size: 1.3rem; margin-bottom:10px; font-weight:bold; text-align:center; min-height:40px;"></div>
+        <div id="word-slots"></div>
+        <div id="keyboard" class="keyboard"></div>
+    </section>
+
+    <div id="overlay" class="overlay">
+        <div class="popup">
+            <div id="win-ui" class="hidden">
+                <span class="msg win-msg">VICTORY!</span>
+                <p>Choose your <b>Golden Chest</b>:</p>
+            </div>
+            <div id="lose-ui" class="hidden">
+                <span class="msg lose-msg">LOST MAP!</span>
+                <p>The map faded away... Try again!</p>
+            </div>
+            <div style="margin: 10px 0; font-size: 1.3rem;">Answer: <b id="ans-display" style="color: #2980b9;"></b></div>
+            
+            <div id="chest-area">
+                <div class="chest-container">
+                    <div class="chest" onclick="openChest(0)">🎁</div>
+                    <div class="chest" onclick="openChest(1)">🎁</div>
+                    <div class="chest" onclick="openChest(2)">🎁</div>
+                </div>
+            </div>
+            
+            <button id="next-btn" class="btn-main" style="display:none; font-size:1.3rem; margin-top:10px;" onclick="loadNewLevel()">NEXT ➔</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const DATA = [
+        {w: 'SHARK', h: 'Dangerous sea king with big teeth.', t: 'easy'},
+        {w: 'WHALE', h: '🐋', t: 'hard'},
+        {w: 'OCTOPUS', h: '🐙', t: 'hard'},
+        {w: 'DOLPHIN', h: 'Smart friend that loves to jump.', t: 'easy'},
+        {w: 'STARFISH', h: '⭐', t: 'hard'},
+        {w: 'CRAB', h: 'I have 10 legs and walk sideways.', t: 'easy'}
+    ];
+
+    let state = { coins: 0, gems: 0, puzzles: 0, word: '', guessed: [], wrong: 0, rewards: [] };
+    const music = document.getElementById('bg-music');
+
+    // SFX Engine
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    function playSfx(freqs, type, dur) {
+        freqs.forEach((f, i) => {
+            setTimeout(() => {
+                const o = ac.createOscillator(); const g = ac.createGain();
+                o.type = type; o.frequency.value = f;
+                g.gain.setValueAtTime(0.1, ac.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+                o.connect(g); g.connect(ac.destination);
+                o.start(); o.stop(ac.currentTime + dur);
+            }, i * 110);
+        });
+    }
+
+    const sound = {
+        right: () => playSfx([600, 900], 'sine', 0.2),
+        wrong: () => playSfx([200, 100], 'sawtooth', 0.4),
+        win: () => playSfx([523, 659, 783, 1046], 'sine', 0.6),
+        chest: () => playSfx([900, 1200, 1500], 'square', 0.3)
+    };
+
+    function startGame() {
+        music.play();
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('game-screen').classList.remove('hidden');
+        loadNewLevel();
+    }
+
+    function loadNewLevel() {
+        document.getElementById('overlay').classList.remove('active');
+        document.getElementById('next-btn').style.display = 'none';
+        document.getElementById('chest-area').style.display = 'block';
+        document.querySelectorAll('.chest').forEach(c => { c.innerHTML = '🎁'; c.className = 'chest'; c.style.opacity = '1'; });
+
+        const item = DATA[Math.floor(Math.random() * DATA.length)];
+        state.word = item.w; state.guessed = []; state.wrong = 0;
+        
+        const pool = ['100💰', '200💰', '500💰', '💎', '🧩'];
+        state.rewards = [0,1,2].map(() => pool[Math.floor(Math.random()*pool.length)]);
+        
+        document.getElementById('hint-text').innerHTML = item.t === 'easy' ? "Hint: " + item.h : `<span style="font-size:2.8rem">${item.h}</span>`;
+        updateUI(); renderWord(); renderKeys();
+    }
+
+    function renderWord() {
+        const div = document.getElementById('word-slots'); div.innerHTML = '';
+        state.word.split('').forEach(l => {
+            const s = document.createElement('div'); s.className = 'slot';
+            s.innerText = state.guessed.includes(l) ? l : '';
+            div.appendChild(s);
+        });
+    }
+
+    function renderKeys() {
+        const kb = document.getElementById('keyboard'); kb.innerHTML = '';
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('').forEach(l => {
+            const b = document.createElement('button'); b.className = 'key'; b.innerText = l;
+            b.onclick = () => {
+                if(state.word.includes(l)) {
+                    state.guessed.push(l); sound.right();
+                    if(state.word.split('').every(c => state.guessed.includes(c))) endRound(true);
+                } else {
+                    state.wrong++; sound.wrong();
+                    if(state.wrong >= 5) endRound(false);
+                }
+                b.classList.add('used'); updateUI(); renderWord();
+            };
+            kb.appendChild(b);
+        });
+    }
+
+    function updateUI() {
+        const t = document.getElementById('turtle-hero');
+        const progress = (state.guessed.length / [...new Set(state.word)].length) || 0;
+        t.style.left = (progress * 80) + "%";
+        
+        // Map Fading Logic (5 steps)
+        const map = document.getElementById('map-area');
+        const opacity = 1 - (state.wrong * 0.2); 
+        map.style.opacity = opacity;
+        map.style.filter = `grayscale(${state.wrong * 20}%) blur(${state.wrong * 1}px)`;
+
+        document.getElementById('coins').innerText = state.coins;
+        document.getElementById('gems').innerText = state.gems;
+        document.getElementById('puzzles').innerText = state.puzzles + "/4";
+    }
+
+    function endRound(win) {
+        document.getElementById('ans-display').innerText = state.word;
+        if(win) {
+            sound.win();
+            document.getElementById('win-ui').classList.remove('hidden');
+            document.getElementById('lose-ui').classList.add('hidden');
+            document.getElementById('chest-area').style.display = 'block';
+        } else {
+            document.getElementById('win-ui').classList.add('hidden');
+            document.getElementById('lose-ui').classList.remove('hidden');
+            document.getElementById('chest-area').style.display = 'none';
+            document.getElementById('next-btn').style.display = 'block';
+        }
+        document.getElementById('overlay').classList.add('active');
+    }
+
+    function openChest(idx) {
+        const r = state.rewards[idx];
+        const chests = document.querySelectorAll('.chest');
+        chests[idx].classList.add('open');
+        sound.chest();
+        
+        let html = '';
+        if(r.includes('💰')) {
+            html = `<div class="reward-visual"><span class="bag-icon">💰</span><span class="bag-val">+${r}</span></div>`;
+            state.coins += parseInt(r);
+        } else if(r === '💎') {
+            html = `<div class="reward-visual"><span class="bag-icon">💎</span><span class="bag-val">GEM!</span></div>`;
+            state.gems++;
+        } else {
+            html = `<div class="reward-visual"><span class="bag-icon">🧩</span><span class="bag-val">PIECE</span></div>`;
+            state.puzzles++;
+        }
+        
+        chests[idx].innerHTML = html;
+        updateUI();
+        
+        setTimeout(() => {
+            chests.forEach((c, i) => { if(!c.classList.contains('open')) { c.style.opacity = '0.5'; c.innerText = state.rewards[i]; }});
+            document.getElementById('next-btn').style.display = 'block';
+        }, 800);
+    }
+
+    setInterval(() => {
+        const b = document.createElement('div'); b.className = 'bubble';
+        const s = Math.random() * 20 + 10 + 'px';
+        b.style.width = s; b.style.height = s; b.style.left = Math.random() * 100 + "%";
+        document.getElementById('game-container').appendChild(b);
+        setTimeout(() => b.remove(), 5000);
+    }, 400);
+</script>
+</body>
+</html>
